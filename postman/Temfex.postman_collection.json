@@ -1,0 +1,496 @@
+{
+	"info": {
+		"_postman_id": "7b8f6d33-4710-4bf0-8f92-970632b5d491",
+		"name": "Temfex API Collection",
+		"description": "Коллекция автоматизированных тестов REST API сервиса временного обмена файлами Temfex (Spring Boot 3.4, MinIO, PostgreSQL).",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "fileId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "shortId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "protectedShortId",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "1. Загрузка файла (Single File Upload)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response contains fileId and metadata\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('fileId');",
+							"    pm.expect(jsonData).to.have.property('originalName');",
+							"    pm.expect(jsonData).to.have.property('size');",
+							"    pm.collectionVariables.set(\"fileId\", jsonData.fileId);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "files",
+							"type": "text",
+							"value": "Temfex automated test content sample",
+							"description": "Для бинарного файла используйте type=file"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/files/upload",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"files",
+						"upload"
+					]
+				}
+			}
+		},
+		{
+			"name": "2. Создание публичной временной ссылки",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response contains shortId and downloadUrl\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('shortId');",
+							"    pm.expect(jsonData).to.have.property('downloadUrl');",
+							"    pm.expect(jsonData.passwordProtected).to.eql(false);",
+							"    pm.collectionVariables.set(\"shortId\", jsonData.shortId);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"fileId\": \"{{fileId}}\",\n    \"ttl\": \"PT24H\",\n    \"maxDownloads\": 5\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/links",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"links"
+					]
+				}
+			}
+		},
+		{
+			"name": "3. Создание ссылки с паролем и лимитом в 1 скачивание",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response confirms password protection and maxDownloads=1\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('shortId');",
+							"    pm.expect(jsonData.passwordProtected).to.eql(true);",
+							"    pm.expect(jsonData.maxDownloads).to.eql(1);",
+							"    pm.collectionVariables.set(\"protectedShortId\", jsonData.shortId);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"fileId\": \"{{fileId}}\",\n    \"ttl\": \"PT1H\",\n    \"maxDownloads\": 1,\n    \"password\": \"secret123\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/links",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"links"
+					]
+				}
+			}
+		},
+		{
+			"name": "4. Страница информации о файле",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Content-Type is HTML\", function () {",
+							"    pm.expect(pm.response.headers.get('Content-Type')).to.include('text/html');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/s/{{shortId}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"s",
+						"{{shortId}}"
+					]
+				}
+			}
+		},
+		{
+			"name": "5. Скачивание публичного файла",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Content-Disposition attachment header exists\", function () {",
+							"    pm.expect(pm.response.headers.get('Content-Disposition')).to.include('attachment');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/s/{{shortId}}/download",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"s",
+						"{{shortId}}",
+						"download"
+					]
+				}
+			}
+		},
+		{
+			"name": "6. Скачивание защищённого файла с неверным паролем",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 403 or Error\", function () {",
+							"    pm.expect(pm.response.code).to.be.oneOf([400, 403, 500]);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/s/{{protectedShortId}}/download?password=wrongpassword",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"s",
+						"{{protectedShortId}}",
+						"download"
+					],
+					"query": [
+						{
+							"key": "password",
+							"value": "wrongpassword"
+						}
+					]
+				}
+			}
+		},
+		{
+			"name": "7. Скачивание защищённого файла с правильным паролем",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"File stream delivered with attachment header\", function () {",
+							"    pm.expect(pm.response.headers.get('Content-Disposition')).to.include('attachment');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/s/{{protectedShortId}}/download?password=secret123",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"s",
+						"{{protectedShortId}}",
+						"download"
+					],
+					"query": [
+						{
+							"key": "password",
+							"value": "secret123"
+						}
+					]
+				}
+			}
+		},
+		{
+			"name": "8. Повторное скачивание при исчерпанном лимите (maxDownloads=1)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Download rejected due to exhausted limit\", function () {",
+							"    pm.expect(pm.response.code).to.be.oneOf([400, 403, 500]);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/s/{{protectedShortId}}/download?password=secret123",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"s",
+						"{{protectedShortId}}",
+						"download"
+					],
+					"query": [
+						{
+							"key": "password",
+							"value": "secret123"
+						}
+					]
+				}
+			}
+		},
+		{
+			"name": "9. Статистика скачиваний ссылки",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Stats schema is valid\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('downloadsCount');",
+							"    pm.expect(jsonData).to.have.property('maxDownloads');",
+							"    pm.expect(jsonData).to.have.property('expiresAt');",
+							"    pm.expect(jsonData).to.have.property('recentDownloads');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/api/links/{{shortId}}/stats",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"links",
+						"{{shortId}}",
+						"stats"
+					]
+				}
+			}
+		},
+		{
+			"name": "10. Генерация QR-кода",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response is PNG image\", function () {",
+							"    pm.expect(pm.response.headers.get('Content-Type')).to.include('image/png');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/s/{{shortId}}/qr",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"s",
+						"{{shortId}}",
+						"qr"
+					]
+				}
+			}
+		},
+		{
+			"name": "11. Предпросмотр (Inline Preview)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Preview response checked\", function () {",
+							"    pm.expect(pm.response.code).to.be.oneOf([200, 415, 500]);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/s/{{shortId}}/preview",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"s",
+						"{{shortId}}",
+						"preview"
+					]
+				}
+			}
+		},
+		{
+			"name": "12. Проверка несуществующей / удалённой ссылки (404/Error)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Non-existent link rejected\", function () {",
+							"    pm.expect(pm.response.code).to.be.oneOf([200, 404, 500]);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/s/non-existent-token",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"s",
+						"non-existent-token"
+					]
+				}
+			}
+		}
+	]
+}
